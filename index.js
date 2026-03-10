@@ -22,7 +22,8 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
   ]
 });
 
@@ -103,5 +104,9 @@ Poste de Sandy Shores
   }
 
 });
+
+if (!TOKEN) {
+  console.error("❌ TOKEN manquant dans les variables d'environnement");
+}
 
 client.login(TOKEN);
