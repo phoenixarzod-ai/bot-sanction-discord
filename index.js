@@ -1,13 +1,19 @@
 const express = require("express");
+const { Client, GatewayIntentBits } = require("discord.js");
+
+// ================= WEB SERVER POUR RENDER =================
+
 const app = express();
 
-app.get("/", (req, res) => res.send("Bot is running"));
+app.get("/", (req, res) => {
+  res.send("Bot is running");
+});
 
 app.listen(process.env.PORT || 3000, () => {
   console.log("Web server started");
 });
 
-const { Client, GatewayIntentBits } = require("discord.js");
+// ================= CONFIG BOT =================
 
 const TOKEN = process.env.TOKEN;
 const ID_SALON_SANCTIONS = "1397295383260168297";
@@ -18,6 +24,8 @@ const ROLES_AUTORISES = [
   "1397295381469200612"
 ];
 
+// ================= CLIENT DISCORD =================
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -27,18 +35,23 @@ const client = new Client({
   ]
 });
 
-client.once("clientReady", () => {
+// ================= CONNEXION =================
+
+client.once("clientReady", (client) => {
   console.log(`✅ Bot connecté : ${client.user.tag}`);
 });
 
 client.on("error", console.error);
 client.on("warn", console.warn);
 
+// ================= SURVEILLANCE DES MESSAGES =================
+
 client.on("messageCreate", async (message) => {
 
   if (message.author.bot) return;
   if (message.channel.id !== ID_SALON_SANCTIONS) return;
 
+  // Vérifie si l'auteur est gradé
   const estGrade = message.member.roles.cache.some(role =>
     ROLES_AUTORISES.includes(role.id)
   );
@@ -47,13 +60,14 @@ client.on("messageCreate", async (message) => {
 
   const contenu = message.content;
 
-  // Extraction des champs
+  // Extraction des infos
   const raison = contenu.match(/Raison\(s\)\s*:\s*(.+)/i)?.[1] || "Non précisé";
   const article = contenu.match(/Article\(s\).*:\s*(.+)/i)?.[1] || "Non précisé";
   const sanction = contenu.match(/Sanction\s*:\s*(.+)/i)?.[1] || "Non précisé";
 
-  // Mentions des agents
+  // Récupère uniquement les mentions utilisateurs
   const mentions = [...contenu.matchAll(/<@!?(\d+)>/g)];
+
   if (!mentions.length) return;
 
   const date = new Date().toLocaleDateString("fr-FR");
@@ -108,8 +122,10 @@ Poste de Sandy Shores
 
 });
 
+// ================= LOGIN =================
+
 if (!TOKEN) {
-  console.error("❌ TOKEN manquant dans les variables d'environnement");
+  console.error("❌ TOKEN manquant !");
 }
 
 console.log("Token présent :", !!TOKEN);
