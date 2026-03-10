@@ -109,4 +109,8 @@ if (!TOKEN) {
   console.error("❌ TOKEN manquant dans les variables d'environnement");
 }
 
-client.login(TOKEN);
+console.log("Token présent :", !!TOKEN);
+
+client.login(TOKEN).catch(err => {
+  console.error("Erreur connexion Discord :", err);
+});
