@@ -27,9 +27,12 @@ const client = new Client({
   ]
 });
 
-client.on("ready", () => {
+client.once("clientReady", () => {
   console.log(`✅ Bot connecté : ${client.user.tag}`);
 });
+
+client.on("error", console.error);
+client.on("warn", console.warn);
 
 client.on("messageCreate", async (message) => {
 
