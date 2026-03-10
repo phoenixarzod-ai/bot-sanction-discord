@@ -1,9 +1,11 @@
-const http = require("http");
+const express = require("express");
+const app = express();
 
-http.createServer((req, res) => {
-  res.writeHead(200);
-  res.end("Bot is running");
-}).listen(process.env.PORT || 3000);
+app.get("/", (req, res) => res.send("Bot is running"));
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log("Web server started");
+});
 
 const { Client, GatewayIntentBits } = require("discord.js");
 
