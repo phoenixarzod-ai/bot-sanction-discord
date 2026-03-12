@@ -17,14 +17,6 @@ const ID_SALON_SANCTIONS = "1397295383260168297";
 // catégorie où créer les tickets
 const ID_CATEGORIE_SANCTIONS = "1481709703632257034";
 
-// rôles gradés
-const ROLES_GRADES = [
-  "1397295381469200612",
-  "1397295381469200616",
-  "1397295381490176001",
-  "1397295381490176004"
-];
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -45,12 +37,11 @@ client.on("messageCreate", async (message) => {
 
   const contenu = message.content;
 
-  // récupérer uniquement la ligne des agents
-  const agentLine = contenu.match(/\*\*Agent\(s\) concerné\(s\)\s:\*\*(.*)/i);
+  // récupérer la ligne des agents
+  const agentLine = contenu.match(/\*\*Agent\(s\) concerné\(s\)\s*:\*\*(.*)/i);
 
   if (!agentLine) return;
 
-  // récupérer tous les agents mentionnés
   const mentions = [...agentLine[1].matchAll(/<@!?(\d+)>/g)];
 
   if (!mentions.length) return;
@@ -67,7 +58,6 @@ client.on("messageCreate", async (message) => {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "");
 
-    // création du salon
     const salon = await message.guild.channels.create({
       name: `sanction-${username}`,
       type: ChannelType.GuildText,
@@ -78,18 +68,15 @@ client.on("messageCreate", async (message) => {
           id: message.guild.id,
           deny: [PermissionsBitField.Flags.ViewChannel]
         },
-
         {
           id: agentID,
           allow: [PermissionsBitField.Flags.ViewChannel]
-        },
-
-        ...ROLES_GRADES.map(role => ({
-          id: role,
-          allow: [PermissionsBitField.Flags.ViewChannel]
-        }))
+        }
       ]
     });
+
+    // petite attente pour que les permissions s'appliquent
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     await salon.send(`
 ${membre}
@@ -103,12 +90,13 @@ ${contenu}
 Si vous souhaitez contester cette décision, merci d'ouvrir un **ticket Capitaine** :
 https://discord.com/channels/1397295381330661557/1397295383260168299
 
+-# Ce ticket restera ouvert **48h**. Passé ce délai, il est possible qu'il soit supprimé.
+
 ---
 
 **Le Corps des gradés**  
-:sandyshores2: Poste de Sandy Shores
+Poste de Sandy Shores
 `);
-
   }
 
 });
