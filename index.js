@@ -45,43 +45,53 @@ client.on("messageCreate", async (message) => {
 
   const contenu = message.content;
 
-  // récupérer l'agent concerné
-  const mention = contenu.match(/<@!?(\d+)>/);
+  // récupérer uniquement la ligne des agents
+  const agentLine = contenu.match(/\*\*Agent\(s\) concerné\(s\)\s:\*\*(.*)/i);
 
-  if (!mention) return;
+  if (!agentLine) return;
 
-  const agentID = mention[1];
+  // récupérer tous les agents mentionnés
+  const mentions = [...agentLine[1].matchAll(/<@!?(\d+)>/g)];
 
-  const membre = await message.guild.members.fetch(agentID).catch(() => null);
+  if (!mentions.length) return;
 
-  if (!membre) return;
+  for (const mention of mentions) {
 
-  // créer le salon
-  const salon = await message.guild.channels.create({
-    name: `sanction-${membre.user.username}`,
-    type: ChannelType.GuildText,
-    parent: ID_CATEGORIE_SANCTIONS,
+    const agentID = mention[1];
 
-    permissionOverwrites: [
-      {
-        id: message.guild.id,
-        deny: [PermissionsBitField.Flags.ViewChannel]
-      },
+    const membre = await message.guild.members.fetch(agentID).catch(() => null);
 
-      {
-        id: agentID,
-        allow: [PermissionsBitField.Flags.ViewChannel]
-      },
+    if (!membre) continue;
 
-      ...ROLES_GRADES.map(role => ({
-        id: role,
-        allow: [PermissionsBitField.Flags.ViewChannel]
-      }))
-    ]
-  });
+    const username = membre.user.username
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
 
-  // envoyer la sanction
-  await salon.send(`
+    // création du salon
+    const salon = await message.guild.channels.create({
+      name: `sanction-${username}`,
+      type: ChannelType.GuildText,
+      parent: ID_CATEGORIE_SANCTIONS,
+
+      permissionOverwrites: [
+        {
+          id: message.guild.id,
+          deny: [PermissionsBitField.Flags.ViewChannel]
+        },
+
+        {
+          id: agentID,
+          allow: [PermissionsBitField.Flags.ViewChannel]
+        },
+
+        ...ROLES_GRADES.map(role => ({
+          id: role,
+          allow: [PermissionsBitField.Flags.ViewChannel]
+        }))
+      ]
+    });
+
+    await salon.send(`
 ${membre}
 
 📌 **Notification disciplinaire**
@@ -90,7 +100,7 @@ ${contenu}
 
 📩 **Contestation**
 
-Si vous souhaitez contester cette décision, merci d'ouvrir un **ticket Capitaine** dans le salon suivant :
+Si vous souhaitez contester cette décision, merci d'ouvrir un **ticket Capitaine** :
 https://discord.com/channels/1397295381330661557/1397295383260168299
 
 ---
@@ -98,6 +108,8 @@ https://discord.com/channels/1397295381330661557/1397295383260168299
 **Le Corps des gradés**  
 Poste de Sandy Shores
 `);
+
+  }
 
 });
 
