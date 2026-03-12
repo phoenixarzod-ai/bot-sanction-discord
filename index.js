@@ -94,7 +94,7 @@ client.on("messageCreate", async (message) => {
     await salon.send(`
 ${membre}
 
-📌 **Notification disciplinaire**
+📌 **NOTIFICATION SANCTION DISCIPLINAIRE**
 
 ${contenu}
 
@@ -106,7 +106,7 @@ https://discord.com/channels/1397295381330661557/1397295383260168299
 ---
 
 **Le Corps des gradés**  
-Poste de Sandy Shores
+:sandyshores2: Poste de Sandy Shores
 `);
 
   }
