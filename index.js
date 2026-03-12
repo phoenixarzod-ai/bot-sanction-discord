@@ -1,30 +1,29 @@
 const express = require("express");
-const { Client, GatewayIntentBits } = require("discord.js");
-
-// ================= WEB SERVER POUR RENDER =================
+const { Client, GatewayIntentBits, ChannelType, PermissionsBitField } = require("discord.js");
 
 const app = express();
 
-app.get("/", (req, res) => {
-  res.send("Bot is running");
-});
+app.get("/", (req, res) => res.send("Bot is running"));
 
 app.listen(process.env.PORT || 3000, () => {
   console.log("Web server started");
 });
 
-// ================= CONFIG BOT =================
-
 const TOKEN = process.env.TOKEN;
+
+// salon où les sanctions sont envoyées
 const ID_SALON_SANCTIONS = "1397295383260168297";
 
-const ROLES_AUTORISES = [
-  "1397295381490176001",
-  "1397295381469200616",
-  "1397295381469200612"
-];
+// catégorie où créer les tickets
+const ID_CATEGORIE_SANCTIONS = "1481709703632257034";
 
-// ================= CLIENT DISCORD =================
+// rôles gradés
+const ROLES_GRADES = [
+  "1397295381469200612",
+  "1397295381469200616",
+  "1397295381490176001",
+  "1397295381490176004"
+];
 
 const client = new Client({
   intents: [
@@ -35,101 +34,71 @@ const client = new Client({
   ]
 });
 
-// ================= CONNEXION =================
-
-client.once("clientReady", (client) => {
-  console.log(`✅ Bot connecté : ${client.user.tag}`);
+client.once("clientReady", (c) => {
+  console.log(`✅ Bot connecté : ${c.user.tag}`);
 });
-
-client.on("error", console.error);
-client.on("warn", console.warn);
-
-// ================= SURVEILLANCE DES MESSAGES =================
 
 client.on("messageCreate", async (message) => {
 
   if (message.author.bot) return;
   if (message.channel.id !== ID_SALON_SANCTIONS) return;
 
-  // Vérifie si l'auteur est gradé
-  const estGrade = message.member.roles.cache.some(role =>
-    ROLES_AUTORISES.includes(role.id)
-  );
-
-  if (!estGrade) return;
-
   const contenu = message.content;
 
-  // Extraction des infos
-  const raison = contenu.match(/Raison\(s\)\s*:\s*(.+)/i)?.[1] || "Non précisé";
-  const article = contenu.match(/Article\(s\).*:\s*(.+)/i)?.[1] || "Non précisé";
-  const sanction = contenu.match(/Sanction\s*:\s*(.+)/i)?.[1] || "Non précisé";
+  // récupérer l'agent concerné
+  const mention = contenu.match(/<@!?(\d+)>/);
 
-  // Récupère uniquement les mentions utilisateurs
-  const mentions = [...contenu.matchAll(/<@!?(\d+)>/g)];
+  if (!mention) return;
 
-  if (!mentions.length) return;
+  const agentID = mention[1];
 
-  const date = new Date().toLocaleDateString("fr-FR");
+  const membre = await message.guild.members.fetch(agentID).catch(() => null);
 
-  for (const mention of mentions) {
+  if (!membre) return;
 
-    const id = mention[1];
+  // créer le salon
+  const salon = await message.guild.channels.create({
+    name: `sanction-${membre.user.username}`,
+    type: ChannelType.GuildText,
+    parent: ID_CATEGORIE_SANCTIONS,
 
-    try {
+    permissionOverwrites: [
+      {
+        id: message.guild.id,
+        deny: [PermissionsBitField.Flags.ViewChannel]
+      },
 
-      const utilisateur = await client.users.fetch(id);
+      {
+        id: agentID,
+        allow: [PermissionsBitField.Flags.ViewChannel]
+      },
 
-      const messagePrive = `
-ℹ️ **Notification disciplinaire**
+      ...ROLES_GRADES.map(role => ({
+        id: role,
+        allow: [PermissionsBitField.Flags.ViewChannel]
+      }))
+    ]
+  });
 
-Bonjour ${utilisateur.username},
+  // envoyer la sanction
+  await salon.send(`
+${membre}
 
-Une décision disciplinaire vous concernant a été prise.
+📌 **Notification disciplinaire**
 
-━━━━━━━━━━━━━━━━━━━
-📅 **Date :** ${date}
+${contenu}
 
-📄 **Raison :**
-${raison}
+📩 **Contestation**
 
-⚖️ **Article enfreint :**
-${article}
-
-📝 **Sanction :**
-${sanction}
-━━━━━━━━━━━━━━━━━━━
-
-📩 **Procédure de contestation**
-Toute contestation doit être effectuée via un ticket Capitaine :
+Si vous souhaitez contester cette décision, merci d'ouvrir un **ticket Capitaine** dans le salon suivant :
 https://discord.com/channels/1397295381330661557/1397295383260168299
 
-Cordialement,  
+---
+
 **Le Corps des gradés**  
 Poste de Sandy Shores
-`;
-
-      await utilisateur.send(messagePrive);
-
-      console.log(`📨 Envoyé à ${utilisateur.tag}`);
-
-    } catch {
-
-      console.log(`❌ MP impossible pour ${id}`);
-
-    }
-  }
+`);
 
 });
 
-// ================= LOGIN =================
-
-if (!TOKEN) {
-  console.error("❌ TOKEN manquant !");
-}
-
-console.log("Token présent :", !!TOKEN);
-
-client.login(TOKEN).catch(err => {
-  console.error("Erreur connexion Discord :", err);
-});
+client.login(TOKEN);
