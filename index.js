@@ -3,6 +3,7 @@ const { Client, GatewayIntentBits, ChannelType, PermissionsBitField } = require(
 
 const app = express();
 
+// serveur obligatoire pour Render
 app.get("/", (req, res) => res.send("Bot is running"));
 
 app.listen(process.env.PORT || 3000, () => {
@@ -26,59 +27,93 @@ const client = new Client({
   ]
 });
 
+// bot connecté
 client.once("clientReady", (c) => {
   console.log(`✅ Bot connecté : ${c.user.tag}`);
 });
 
+// détection message
 client.on("messageCreate", async (message) => {
 
-  if (message.author.bot) return;
-  if (message.channel.id !== ID_SALON_SANCTIONS) return;
+  try {
 
-  const contenu = message.content;
+    if (message.author.bot) return;
+    if (message.channel.id !== ID_SALON_SANCTIONS) return;
 
-  // récupérer la ligne des agents
-  const agentLine = contenu.match(/\*\*Agent\(s\) concerné\(s\)\s*:\*\*(.*)/i);
+    console.log("📩 Message détecté");
 
-  if (!agentLine) return;
+    const contenu = message.content;
 
-  const mentions = [...agentLine[1].matchAll(/<@!?(\d+)>/g)];
+    // récupérer ligne agents
+    const agentLine = contenu.match(/\*\*Agent\(s\) concerné\(s\)\s*:\*\*(.*)/i);
 
-  if (!mentions.length) return;
+    if (!agentLine) {
+      console.log("❌ Aucun agent trouvé");
+      return;
+    }
 
-  for (const mention of mentions) {
+    // récupérer les mentions UNIQUEMENT dans cette ligne
+    const mentions = [...agentLine[1].matchAll(/<@!?(\d+)>/g)];
 
-    const agentID = mention[1];
+    if (!mentions.length) {
+      console.log("❌ Pas de mentions valides");
+      return;
+    }
 
-    const membre = await message.guild.members.fetch(agentID).catch(() => null);
+    for (const mention of mentions) {
 
-    if (!membre) continue;
+      const agentID = mention[1];
 
-    const username = membre.user.username
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
+      const membre = await message.guild.members.fetch(agentID).catch(() => null);
 
-    const salon = await message.guild.channels.create({
-      name: `sanction-${username}`,
-      type: ChannelType.GuildText,
-      parent: ID_CATEGORIE_SANCTIONS,
+      if (!membre) {
+        console.log(`❌ Membre introuvable ${agentID}`);
+        continue;
+      }
 
-      permissionOverwrites: [
-        {
-          id: message.guild.id,
-          deny: [PermissionsBitField.Flags.ViewChannel]
-        },
-        {
-          id: agentID,
-          allow: [PermissionsBitField.Flags.ViewChannel]
-        }
-      ]
-    });
+      const username = membre.user.username
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
 
-    // petite attente pour que les permissions s'appliquent
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(`📁 Création salon pour ${username}`);
 
-    await salon.send(`
+      const salon = await message.guild.channels.create({
+        name: `sanction-${username}`,
+        type: ChannelType.GuildText,
+        parent: ID_CATEGORIE_SANCTIONS,
+
+        permissionOverwrites: [
+
+          // tout le monde ne voit pas
+          {
+            id: message.guild.id,
+            deny: [PermissionsBitField.Flags.ViewChannel]
+          },
+
+          // agent voit le salon
+          {
+            id: agentID,
+            allow: [PermissionsBitField.Flags.ViewChannel]
+          },
+
+          // BOT (TRÈS IMPORTANT)
+          {
+            id: client.user.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages
+            ]
+          }
+
+        ]
+      });
+
+      console.log("✅ Salon créé");
+
+      // petite attente sécurité
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      await salon.send(`
 ${membre}
 
 📌 **NOTIFICATION SANCTION DISCIPLINAIRE**
@@ -97,6 +132,12 @@ https://discord.com/channels/1397295381330661557/1397295383260168299
 **Le Corps des gradés**  
 Poste de Sandy Shores
 `);
+
+      console.log(`📨 Message envoyé à ${username}`);
+    }
+
+  } catch (err) {
+    console.error("💥 ERREUR :", err);
   }
 
 });
