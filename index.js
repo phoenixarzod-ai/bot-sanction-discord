@@ -3,7 +3,7 @@ const { Client, GatewayIntentBits, ChannelType, PermissionsBitField } = require(
 
 const app = express();
 
-// serveur obligatoire pour Render
+// serveur pour Render
 app.get("/", (req, res) => res.send("Bot is running"));
 
 app.listen(process.env.PORT || 3000, () => {
@@ -12,10 +12,7 @@ app.listen(process.env.PORT || 3000, () => {
 
 const TOKEN = process.env.TOKEN;
 
-// salon où les sanctions sont envoyées
 const ID_SALON_SANCTIONS = "1397295383260168297";
-
-// catégorie où créer les tickets
 const ID_CATEGORIE_SANCTIONS = "1481709703632257034";
 
 const client = new Client({
@@ -27,12 +24,16 @@ const client = new Client({
   ]
 });
 
-// bot connecté
+// BOT CONNECTÉ
 client.once("clientReady", (c) => {
   console.log(`✅ Bot connecté : ${c.user.tag}`);
 });
 
-// détection message
+// DEBUG ERREURS
+client.on("error", console.error);
+client.on("warn", console.warn);
+
+// MESSAGE
 client.on("messageCreate", async (message) => {
 
   try {
@@ -52,11 +53,10 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // récupérer les mentions UNIQUEMENT dans cette ligne
     const mentions = [...agentLine[1].matchAll(/<@!?(\d+)>/g)];
 
     if (!mentions.length) {
-      console.log("❌ Pas de mentions valides");
+      console.log("❌ Pas de mention");
       return;
     }
 
@@ -67,7 +67,7 @@ client.on("messageCreate", async (message) => {
       const membre = await message.guild.members.fetch(agentID).catch(() => null);
 
       if (!membre) {
-        console.log(`❌ Membre introuvable ${agentID}`);
+        console.log("❌ Membre introuvable");
         continue;
       }
 
@@ -84,19 +84,16 @@ client.on("messageCreate", async (message) => {
 
         permissionOverwrites: [
 
-          // tout le monde ne voit pas
           {
             id: message.guild.id,
             deny: [PermissionsBitField.Flags.ViewChannel]
           },
 
-          // agent voit le salon
           {
             id: agentID,
             allow: [PermissionsBitField.Flags.ViewChannel]
           },
 
-          // BOT (TRÈS IMPORTANT)
           {
             id: client.user.id,
             allow: [
@@ -110,7 +107,7 @@ client.on("messageCreate", async (message) => {
 
       console.log("✅ Salon créé");
 
-      // petite attente sécurité
+      // attendre 1 seconde
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       await salon.send(`
@@ -142,4 +139,13 @@ Poste de Sandy Shores
 
 });
 
-client.login(TOKEN);
+// LOGIN DISCORD
+console.log("Token présent :", !!TOKEN);
+
+if (!TOKEN) {
+  console.error("❌ TOKEN MANQUANT");
+} else {
+  client.login(TOKEN)
+    .then(() => console.log("🔑 Connexion Discord en cours..."))
+    .catch(err => console.error("❌ Erreur connexion :", err));
+}
